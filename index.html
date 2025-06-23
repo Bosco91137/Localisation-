@@ -45,7 +45,8 @@
         .light-mode .sticky-header,
         .light-mode .card,
         .light-mode .modal-content,
-        .light-mode .payment-modal {
+        .light-mode .payment-modal,
+        .light-mode .location-popup {
             background-color: white;
             color: var(--dark-text);
             box-shadow: var(--shadow);
@@ -143,7 +144,8 @@
         }
 
         .theme-toggle {
-            background: none;border: none;
+            background: none;
+            border: none;
             color: var(--light-text);
             font-size: 1.2rem;
             cursor: pointer;
@@ -302,7 +304,8 @@
         }
 
         .card-icon {
-            font-size: 3rem;margin-bottom: 20px;
+            font-size: 3rem;
+            margin-bottom: 20px;
             color: var(--primary-color);
         }
 
@@ -373,6 +376,61 @@
             border-radius: 10px;
             margin-top: 20px;
             box-shadow: var(--shadow);
+        }
+
+        /* Location Popup */
+        .location-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: var(--darker-bg);
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            z-index: 3000;
+            width: 90%;
+            max-width: 600px;
+            display: none;
+        }
+
+        .popup-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .popup-title {
+            font-size: 1.5rem;
+            color: var(--primary-color);
+        }
+
+        .close-popup {
+            background: none;
+            border: none;
+            color: var(--light-text);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .light-mode .close-popup {
+            color: var(--dark-text);
+        }
+
+        .popup-map {
+            height: 300px;
+            width: 100%;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .popup-details {
+            margin-bottom: 20px;
+        }
+
+        .popup-details p {
+            margin-bottom: 10px;
         }
 
         /* Leaflet map dark mode */
@@ -593,6 +651,11 @@
             .steps {
                 grid-template-columns: 1fr;
             }
+
+            .location-popup {
+                width: 95%;
+                padding: 20px;
+            }
         }
 
         @media (max-width: 576px) {
@@ -608,6 +671,10 @@
             .payment-modal {
                 width: 95%;
                 padding: 20px;
+            }
+
+            .popup-map {
+                height: 200px;
             }
         }
 
@@ -647,7 +714,8 @@
                 <ul id="nav-menu">
                     <li><a href="#accueil">Accueil</a></li>
                     <li><a href="#fonctionnement">Fonctionnement</a></li>
-                    <li><a href="#faq">FAQ</a></li><li><a href="#contact">Contact</a></li>
+                    <li><a href="#faq">FAQ</a></li>
+                    <li><a href="#contact">Contact</a></li>
                     <li><button id="theme-toggle" class="theme-toggle"><i class="fas fa-moon"></i></button></li>
                 </ul>
                 <div class="mobile-menu-btn" id="mobile-menu-btn">
@@ -735,7 +803,7 @@
                 <a href="#"><i class="fab fa-instagram"></i></a>
                 <a href="#"><i class="fab fa-whatsapp"></i></a>
             </div>
-            <p class="copyright">© 2023 Service de Location.Tous droits réservés.</p>
+            <p class="copyright">© 2023 Service de Location. Tous droits réservés.</p>
         </div>
     </footer>
 
@@ -752,18 +820,28 @@
                 1000 FCFA
             </div>
             <div class="payment-options">
-                <button class="payment-btn orange-money" id="orange-money-btn">
-                    <i class="fas fa-money-bill-wave"></i> Payer avec Orange Money
-                </button>
-                <button class="payment-btn mtn-momo" id="mtn-momo-btn">
-                    <i class="fas fa-money-bill-alt"></i> Payer avec MTN Mobile Money
+                <button class="payment-btn orange-money" id="payButton">
+                    <i class="fas fa-money-bill-wave"></i> Payer avec Campay
                 </button>
             </div>
         </div>
     </div>
 
+    <!-- Location Popup -->
+    <div class="location-popup" id="location-popup">
+        <div class="popup-header">
+            <h3 class="popup-title" id="popup-title"></h3>
+            <button class="close-popup" id="close-popup">&times;</button>
+        </div>
+        <div class="popup-details" id="popup-details"></div>
+        <div id="popup-map" class="popup-map"></div>
+        <button class="btn-primary" id="view-full-results">Voir les détails complets</button>
+    </div>
+
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Campay SDK -->
+    <script src="https://www.campay.net/sdk/js?app-id=t4-CJchgj_KuCtVpLMKZdXJBuxwi-8tniwJnD_jhPHow1doXKZx4BoSWU2Ib5uLO34wRiAf3gADlFnEAYKdZoQ"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // Mobile menu toggle
@@ -804,19 +882,24 @@
             const paymentModal = document.getElementById('payment-modal');
             const closeModal = document.getElementById('close-modal');
             const paymentPhone = document.getElementById('payment-phone');
-            const orangeMoneyBtn = document.getElementById('orange-money-btn');
-            const mtnMomoBtn = document.getElementById('mtn-momo-btn');
+            const payButton = document.getElementById('payButton');
             const resultsSection = document.getElementById('results');
             const loadingAnimation = document.getElementById('loading-animation');
             const resultContent = document.getElementById('result-content');
             const resultTitle = document.getElementById('result-title');
             const resultDetails = document.getElementById('result-details');
+            const locationPopup = document.getElementById('location-popup');
+            const popupTitle = document.getElementById('popup-title');
+            const popupDetails = document.getElementById('popup-details');
+            const closePopup = document.getElementById('close-popup');
+            const viewFullResults = document.getElementById('view-full-results');
 
             // Quarters data by region (10 regions, 10 quarters each)
             const quartersByRegion = {
                 "Adamaoua": ["Djérem", "Faro-et-Déo", "Mayo-Banyo", "Mbéré", "Vina", "Ngaoundéré Centre", "Ngaoundéré Rural", "Tibati", "Tignère", "Bankim"],
                 "Centre": ["Bikok", "Mfoundi", "Haute-Sanaga", "Lekié", "Mbam-et-Inoubou", "Mbam-et-Kim", "Méfou-et-Afamba", "Méfou-et-Akono", "Mfoundi", "Nyong-et-Kéllé"],
-                "Est": ["Boumba-et-Ngoko", "Haut-Nyong", "Kadey", "Lom-et-Djérem", "Abong-Mbang", "Batouri", "Bertoua", "Dimako", "Garoua-Boulaï", "Yokadouma"],"Extrême-Nord": ["Diamaré", "Logone-et-Chari", "Mayo-Danay", "Mayo-Kani", "Mayo-Sava", "Mayo-Tsanaga", "Mora", "Kousséri", "Maroua", "Yagoua"],
+                "Est": ["Boumba-et-Ngoko", "Haut-Nyong", "Kadey", "Lom-et-Djérem", "Abong-Mbang", "Batouri", "Bertoua", "Dimako", "Garoua-Boulaï", "Yokadouma"],
+                "Extrême-Nord": ["Diamaré", "Logone-et-Chari", "Mayo-Danay", "Mayo-Kani", "Mayo-Sava", "Mayo-Tsanaga", "Mora", "Kousséri", "Maroua", "Yagoua"],
                 "Littoral": ["Moungo", "Nkam", "Sanaga-Maritime", "Wouri", "Douala I", "Douala II", "Douala III", "Douala IV", "Douala V", "Edéa"],
                 "Nord": ["Bénoué", "Faro", "Mayo-Louti", "Mayo-Rey", "Garoua", "Guider", "Figuil", "Lagdo", "Poli", "Rey-Bouba"],
                 "Nord-Ouest": ["Boyo", "Bui", "Donga-Mantung", "Menchum", "Mezam", "Momo", "Ngo-Ketunjia", "Bamenda", "Fundong", "Wum"],
@@ -839,23 +922,27 @@
                 "Sud-Ouest": { lat: 4.1667, lng: 9.2333 }
             };
 
-            // Initialize map
-            let map;
-            let marker;
+            // Initialize maps
+            let mainMap, popupMap;
+            let mainMarker, popupMarker;
             
-            function initMap(region, quarter) {
+            function initMainMap(region, quarter) {
                 const mapElement = document.getElementById('map');
                 const center = regionCenters[region] || { lat: 5.5, lng: 12.0 };
                 
-                map = L.map(mapElement).setView([center.lat, center.lng], 13);
+                if (mainMap) {
+                    mainMap.remove();
+                }
+                
+                mainMap = L.map(mapElement).setView([center.lat, center.lng], 13);
                 
                 // Add OpenStreetMap tiles
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                }).addTo(map);
+                }).addTo(mainMap);
                 
                 // Add marker for the quarter
-                marker = L.marker([center.lat, center.lng], {
+                mainMarker = L.marker([center.lat, center.lng], {
                     title: quarter,
                     icon: L.icon({
                         iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
@@ -863,11 +950,111 @@
                         iconAnchor: [12, 41],
                         popupAnchor: [1, -34]
                     })
-                }).addTo(map);
+                }).addTo(mainMap);
                 
                 // Add popup with quarter info
-                marker.bindPopup(`<strong>${quarter}</strong><br>Position approximative du numéro`).openPopup();
+                mainMarker.bindPopup(`<strong>${quarter}</strong><br>Position approximative du numéro`).openPopup();
             }
+
+            function initPopupMap(region, quarter) {
+                const mapElement = document.getElementById('popup-map');
+                const center = regionCenters[region] || { lat: 5.5, lng: 12.0 };
+                
+                if (popupMap) {
+                    popupMap.remove();
+                }
+                
+                popupMap = L.map(mapElement).setView([center.lat, center.lng], 13);
+                
+                // Add OpenStreetMap tiles
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                }).addTo(popupMap);
+                
+                // Add marker for the quarter
+                popupMarker = L.marker([center.lat, center.lng], {
+                    title: quarter,
+                    icon: L.icon({
+                        iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+                        iconSize: [25, 41],
+                        iconAnchor: [12, 41],
+                        popupAnchor: [1, -34]
+                    })
+                }).addTo(popupMap);
+                
+                // Add popup with quarter info
+                popupMarker.bindPopup(`<strong>${quarter}</strong><br>Position approximative du numéro`).openPopup();
+            }
+
+            // Configure Campay SDK
+            campay.options({
+                payButtonId: "payButton",
+                description: "Localisation de numéro téléphonique",
+                amount: "1000",
+                currency: "XAF",
+                externalReference: "",
+                redirectUrl: "",
+            });
+            
+            // Campay success callback
+            campay.onSuccess = function(data) {
+                paymentModal.style.display = 'none';
+                resultsSection.style.display = 'block';
+                loadingAnimation.style.display = 'block';
+                resultContent.style.display = 'none';
+                
+                // Simulate location processing (10 seconds)
+                setTimeout(function() {
+                    loadingAnimation.style.display = 'none';
+                    resultContent.style.display = 'block';
+                    
+                    // Generate random result
+                    const phoneNumber = phoneNumberInput.value.trim();
+                    const regions = Object.keys(quartersByRegion);
+                    const randomRegion = regions[Math.floor(Math.random() * regions.length)];
+                    const randomQuarter = quartersByRegion[randomRegion][Math.floor(Math.random() * quartersByRegion[randomRegion].length)];
+                    
+                    // Display results in main section
+                    resultTitle.textContent = `Le numéro ${phoneNumber} a été trouvé`;
+                    resultDetails.innerHTML = `
+                        <p><strong>Région:</strong> ${randomRegion}</p>
+                        <p><strong>Quartier:</strong> ${randomQuarter}</p>
+                        <p><strong>Coordonnées:</strong> Latitude: ${regionCenters[randomRegion].lat.toFixed(6)}, Longitude: ${regionCenters[randomRegion].lng.toFixed(6)}</p>
+                        <p><strong>Référence de paiement:</strong> ${data.reference}</p>
+                    `;
+                    
+                    // Initialize main map
+                    initMainMap(randomRegion, randomQuarter);
+                    
+                    // Show popup with location
+                    popupTitle.textContent = `Le numéro ${phoneNumber} a été trouvé`;
+                    popupDetails.innerHTML = `
+                        <p><strong>Région:</strong> ${randomRegion}</p>
+                        <p><strong>Quartier:</strong> ${randomQuarter}</p>
+                        <p><strong>Coordonnées:</strong> Latitude: ${regionCenters[randomRegion].lat.toFixed(6)}, Longitude: ${regionCenters[randomRegion].lng.toFixed(6)}</p>
+                    `;
+                    
+                    // Initialize popup map
+                    initPopupMap(randomRegion, randomQuarter);
+                    
+                    // Show popup
+                    locationPopup.style.display = 'block';
+                    
+                    // Scroll to results
+                    resultsSection.scrollIntoView({ behavior: 'smooth' });
+                }, 10000); // 10 seconds
+            };
+            
+            // Campay failure callback
+            campay.onFail = function(data) {
+                alert('Paiement échoué: ' + data.status);
+                paymentModal.style.display = 'none';
+            };
+            
+            // Campay modal close callback
+            campay.onModalClose = function(data) {
+                console.log('Modal fermé: ' + data.status);
+            };
 
             // Locate button click handler
             locateBtn.addEventListener('click', function() {
@@ -882,57 +1069,28 @@
                 paymentModal.style.display = 'flex';
             });
 
-            // Close modal
+            // Close modals
             closeModal.addEventListener('click', function() {
                 paymentModal.style.display = 'none';
             });
 
-            // Payment buttons (simulation)
-            orangeMoneyBtn.addEventListener('click', function() {
-                simulatePayment("Orange Money");
+            closePopup.addEventListener('click', function() {
+                locationPopup.style.display = 'none';
             });
 
-            mtnMomoBtn.addEventListener('click', function() {
-                simulatePayment("MTN Mobile Money");
-            });// Simulate payment process
-            function simulatePayment(method) {
-                paymentModal.style.display = 'none';
-                resultsSection.style.display = 'block';
-                loadingAnimation.style.display = 'block';
-                resultContent.style.display = 'none';
-                
-                // Simulate payment processing (10 seconds)
-                setTimeout(function() {
-                    loadingAnimation.style.display = 'none';
-                    resultContent.style.display = 'block';
-                    
-                    // Generate random result
-                    const phoneNumber = phoneNumberInput.value.trim();
-                    const regions = Object.keys(quartersByRegion);
-                    const randomRegion = regions[Math.floor(Math.random() * regions.length)];
-                    const randomQuarter = quartersByRegion[randomRegion][Math.floor(Math.random() * quartersByRegion[randomRegion].length)];
-                    
-                    // Display results
-                    resultTitle.textContent = "Le numéro" + '${phoneNumber}'+ "a été trouvé";
-                    resultDetails.innerHTML = `
-                        <p><strong>Région:</strong> ${randomRegion}</p>
-                        <p><strong>Quartier:</strong> ${randomQuarter}</p>
-                        <p><strong>Coordonnées:</strong> Latitude: ${regionCenters[randomRegion].lat.toFixed(6)}, Longitude: ${regionCenters[randomRegion].lng.toFixed(6)}</p>
-                        <p><strong>Méthode de paiement:</strong> ${method}</p>
-                    `;
-                    
-                    // Initialize map
-                    initMap(randomRegion, randomQuarter);
-                    
-                    // Scroll to results
-                    resultsSection.scrollIntoView({ behavior: 'smooth' });
-                }, 10000); // 10 seconds
-            }
+            // View full results button
+            viewFullResults.addEventListener('click', function() {
+                locationPopup.style.display = 'none';
+                resultsSection.scrollIntoView({ behavior: 'smooth' });
+            });
 
-            // Close modal when clicking outside
+            // Close modals when clicking outside
             window.addEventListener('click', function(event) {
                 if (event.target === paymentModal) {
                     paymentModal.style.display = 'none';
+                }
+                if (event.target === locationPopup) {
+                    locationPopup.style.display = 'none';
                 }
             });
         });
